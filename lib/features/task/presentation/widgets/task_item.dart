@@ -4,6 +4,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 
 import 'package:task_manager/features/task/domain/todo_model.dart';
+import 'package:task_manager/features/task/presentation/pages/add_edit_task_page.dart';
 
 class TaskItem extends StatelessWidget {
   final TodoModel todo;
@@ -58,70 +59,77 @@ class TaskItem extends StatelessWidget {
           color: Theme.of(context).scaffoldBackgroundColor,
         ),
       ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.tertiary,
-          borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => AddEditTaskPage(todo: todo)),
         ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 15),
-          leading: Checkbox(
-            value: todo.isDone,
-            onChanged: (value) {
-              onToggleDone(todo);
-            },
-            activeColor: Theme.of(context).colorScheme.scrim,
-            fillColor: todo.importance == Importance.high && !todo.isDone
-                ? WidgetStateProperty.all(
-                    Theme.of(context).colorScheme.error.withOpacity(.16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.tertiary,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 15),
+            leading: Checkbox(
+              value: todo.done,
+              onChanged: (value) {
+                onToggleDone(todo);
+              },
+              activeColor: Theme.of(context).colorScheme.scrim,
+              fillColor: todo.importance == Importance.important && !todo.done
+                  ? WidgetStateProperty.all(
+                      Theme.of(context).colorScheme.error.withOpacity(.16),
+                    )
+                  : null,
+              isError: todo.importance == Importance.important && !todo.done
+                  ? true
+                  : false,
+            ),
+            title: Row(
+              children: [
+                todo.done
+                    ? const SizedBox()
+                    : todo.importance == Importance.important
+                        ? SvgPicture.asset("assets/icons/hight_priority.svg")
+                        : todo.importance == Importance.low
+                            ? SvgPicture.asset("assets/icons/low_priority.svg")
+                            : const SizedBox(),
+                SizedBox(
+                  width:
+                      todo.importance == Importance.basic || todo.done ? 0 : 5,
+                ),
+                Expanded(
+                  child: Text(
+                    todo.text,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          decoration:
+                              todo.done ? TextDecoration.lineThrough : null,
+                          decorationColor:
+                              Theme.of(context).colorScheme.secondary,
+                          color: todo.done
+                              ? Theme.of(context).colorScheme.secondary
+                              : Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            subtitle: todo.deadline != null
+                ? Text(
+                    DateFormat.yMMMMd(locale).format(
+                        DateTime.fromMillisecondsSinceEpoch(todo.deadline!)),
+                    style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                          color: Theme.of(context).colorScheme.secondary,
+                        ),
                   )
                 : null,
-            isError: todo.importance == Importance.high && !todo.isDone
-                ? true
-                : false,
-          ),
-          title: Row(
-            children: [
-              todo.isDone
-                  ? const SizedBox()
-                  : todo.importance == Importance.high
-                      ? SvgPicture.asset("assets/icons/hight_priority.svg")
-                      : todo.importance == Importance.low
-                          ? SvgPicture.asset("assets/icons/low_priority.svg")
-                          : const SizedBox(),
-              SizedBox(
-                width:
-                    todo.importance == Importance.none || todo.isDone ? 0 : 5,
-              ),
-              Expanded(
-                child: Text(
-                  todo.title,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        decoration:
-                            todo.isDone ? TextDecoration.lineThrough : null,
-                        decorationColor:
-                            Theme.of(context).colorScheme.secondary,
-                        color: todo.isDone
-                            ? Theme.of(context).colorScheme.secondary
-                            : Theme.of(context).textTheme.bodyMedium?.color,
-                      ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          subtitle: todo.deadline != null
-              ? Text(
-                  DateFormat.yMMMMd(locale).format(todo.deadline!),
-                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                        color: Theme.of(context).colorScheme.secondary,
-                      ),
-                )
-              : null,
-          trailing: Icon(
-            Icons.info_outline,
-            color: Theme.of(context).colorScheme.secondary,
+            trailing: Icon(
+              Icons.info_outline,
+              color: Theme.of(context).colorScheme.secondary,
+            ),
           ),
         ),
       ),

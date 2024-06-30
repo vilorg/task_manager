@@ -1,10 +1,13 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
+import 'package:task_manager/core/constants/importance_extension.dart';
 
 import 'package:task_manager/core/logger.dart';
+import 'package:task_manager/features/task/domain/cubit/task_cubit.dart';
 import 'package:task_manager/features/task/domain/todo_model.dart';
 
 class AddEditTaskPage extends StatefulWidget {
@@ -19,7 +22,7 @@ class AddEditTaskPage extends StatefulWidget {
 class _AddEditTaskPageState extends State<AddEditTaskPage> {
   late String _title;
   late TextEditingController titleController;
-  Importance _importance = Importance.none;
+  Importance _importance = Importance.basic;
   DateTime? _deadline = DateTime.now();
   bool isNeedDeadline = false;
 
@@ -29,12 +32,12 @@ class _AddEditTaskPageState extends State<AddEditTaskPage> {
 
     return Row(
       children: [
-        importance == Importance.high
+        importance == Importance.important
             ? SvgPicture.asset("assets/icons/hight_priority.svg")
             : importance == Importance.low
                 ? SvgPicture.asset("assets/icons/low_priority.svg")
                 : const SizedBox(),
-        SizedBox(width: importance == Importance.none ? 0 : 5),
+        SizedBox(width: importance == Importance.basic ? 0 : 5),
         Text(
           importanceText,
           style: Theme.of(context)
@@ -50,10 +53,12 @@ class _AddEditTaskPageState extends State<AddEditTaskPage> {
   void initState() {
     super.initState();
     if (widget.todo != null) {
-      _title = widget.todo!.title;
-      titleController = TextEditingController(text: widget.todo!.title);
+      _title = widget.todo!.text;
+      titleController = TextEditingController(text: widget.todo!.text);
       _importance = widget.todo!.importance;
-      _deadline = widget.todo!.deadline ?? _deadline;
+      _deadline = widget.todo!.deadline != null
+          ? DateTime.fromMillisecondsSinceEpoch(widget.todo!.deadline!)
+          : null;
       isNeedDeadline = widget.todo!.deadline != null;
     } else {
       titleController = TextEditingController();
@@ -61,16 +66,43 @@ class _AddEditTaskPageState extends State<AddEditTaskPage> {
     }
   }
 
-  void _saveTask() {
-    final newTodo = TodoModel(
-      title: _title,
-      importance: _importance,
-      deadline: _deadline,
-    );
-    logger.i(
-        'Task "${newTodo.title}" saved with importance "${newTodo.importance}" and deadline "${newTodo.deadline}"');
-
-    Navigator.pop(context, newTodo);
+  Future<bool> _saveTask() async {
+    try {
+      TodoModel? newTodo = widget.todo;
+      if (widget.todo != null) {
+        newTodo = widget.todo!.copyWith(
+          text: _title,
+          importance: _importance,
+          deadline: isNeedDeadline ? _deadline?.millisecondsSinceEpoch : null,
+          done: widget.todo?.done ?? false,
+          createdAt:
+              widget.todo?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+          changedAt: DateTime.now().millisecondsSinceEpoch,
+          lastUpdatedBy: 'device_id',
+        );
+        await context.read<TaskCubit>().updateTask(newTodo);
+      } else {
+        newTodo = TodoModel(
+          text: _title,
+          importance: _importance,
+          deadline: isNeedDeadline ? _deadline?.millisecondsSinceEpoch : null,
+          done: widget.todo?.done ?? false,
+          createdAt:
+              widget.todo?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+          changedAt: DateTime.now().millisecondsSinceEpoch,
+          lastUpdatedBy: 'device_id',
+        );
+        await context.read<TaskCubit>().addTask(newTodo);
+      }
+      logger.i(
+          'Task "${newTodo.text}" saved with importance "${newTodo.importance}" and deadline "${newTodo.deadline}"');
+      return true;
+    } catch (e) {
+      if (context.mounted) {
+        return false;
+      }
+    }
+    return false;
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -103,7 +135,20 @@ class _AddEditTaskPageState extends State<AddEditTaskPage> {
           TextButton(
             onPressed: (isNeedDeadline && _deadline == null) || _title.isEmpty
                 ? null
-                : _saveTask,
+                : () async {
+                    bool result = await _saveTask();
+                    if (result) {
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                      }
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Failed to save task')));
+                      }
+                    }
+                  },
             child: Text(
               AppLocalizations.of(context)!.save,
               style: Theme.of(context).textTheme.bodySmall!.copyWith(
@@ -168,7 +213,16 @@ class _AddEditTaskPageState extends State<AddEditTaskPage> {
             const Divider(),
             const SizedBox(height: 15),
             InkWell(
-              onTap: widget.todo == null ? null : () => Navigator.pop(context),
+              onTap: widget.todo == null
+                  ? null
+                  : () async {
+                      await context
+                          .read<TaskCubit>()
+                          .deleteTask(widget.todo!.id);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                    },
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

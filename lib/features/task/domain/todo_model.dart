@@ -1,70 +1,101 @@
+// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:equatable/equatable.dart';
-import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:json_annotation/json_annotation.dart';
 import 'package:uuid/uuid.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
-enum Importance { none, low, high }
+part 'todo_model.g.dart';
 
-extension CatExtension on Importance {
-  String getText(BuildContext context) {
-    switch (this) {
-      case Importance.high:
-        return AppLocalizations.of(context)!.imporanceHight;
-      case Importance.low:
-        return AppLocalizations.of(context)!.imporanceLow;
-      case Importance.none:
-        return AppLocalizations.of(context)!.importanceNone;
-    }
-  }
-
-  Color? color(BuildContext context) {
-    Color? importanceColor = Theme.of(context).textTheme.bodyMedium?.color;
-
-    if (this == Importance.high) {
-      importanceColor = Theme.of(context).colorScheme.error;
-    }
-    return importanceColor;
-  }
-}
-
+@JsonSerializable()
+@HiveType(typeId: 0)
 class TodoModel extends Equatable {
-  final String title;
-  final Importance importance;
-  final DateTime? deadline;
-  final bool isDone;
+  @HiveField(0)
   final String id;
+  @HiveField(1)
+  final String text;
+  @HiveField(2)
+  final Importance importance;
+  @HiveField(3)
+  final int? deadline;
+  @HiveField(4)
+  final bool done;
+  @HiveField(5)
+  final String? color;
+  @HiveField(6)
+  @JsonKey(name: 'created_at')
+  final int createdAt;
+  @HiveField(7)
+  @JsonKey(name: 'changed_at')
+  final int changedAt;
+  @HiveField(8)
+  @JsonKey(name: 'last_updated_by')
+  final String lastUpdatedBy;
 
   TodoModel({
-    required this.title,
+    id,
+    required this.text,
     required this.importance,
     this.deadline,
-    this.isDone = false,
-    id,
+    required this.done,
+    this.color,
+    required this.createdAt,
+    required this.changedAt,
+    required this.lastUpdatedBy,
   }) : id = id ?? const Uuid().v4();
 
-  // Метод для копирования объекта с изменением некоторых свойств
+  factory TodoModel.fromJson(Map<String, dynamic> json) =>
+      _$TodoModelFromJson(json);
+  Map<String, dynamic> toJson() => _$TodoModelToJson(this);
+
   TodoModel copyWith({
-    String? title,
+    String? id,
+    String? text,
     Importance? importance,
-    DateTime? deadline,
-    bool? isDone,
+    int? deadline,
+    bool? done,
+    String? color,
+    int? createdAt,
+    int? changedAt,
+    String? lastUpdatedBy,
   }) {
     return TodoModel(
-      title: title ?? this.title,
+      id: id ?? this.id,
+      text: text ?? this.text,
       importance: importance ?? this.importance,
       deadline: deadline ?? this.deadline,
-      isDone: isDone ?? this.isDone,
+      done: done ?? this.done,
+      color: color ?? this.color,
+      createdAt: createdAt ?? this.createdAt,
+      changedAt: changedAt ?? this.changedAt,
+      lastUpdatedBy: lastUpdatedBy ?? this.lastUpdatedBy,
     );
   }
 
   @override
-  List<Object> get props => [
-        title,
-        importance,
-        deadline ?? DateTime.now(),
-        isDone,
-      ];
+  List<Object> get props {
+    return [
+      id,
+      text,
+      importance,
+      deadline ?? 0,
+      done,
+      color ?? "",
+      createdAt,
+      changedAt,
+      lastUpdatedBy,
+    ];
+  }
 
   @override
   bool get stringify => true;
+}
+
+@HiveType(typeId: 1)
+enum Importance {
+  @HiveField(0)
+  basic,
+  @HiveField(1)
+  low,
+  @HiveField(2)
+  important,
 }
